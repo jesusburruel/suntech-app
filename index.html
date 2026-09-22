@@ -651,6 +651,8 @@ function ST_CotizacionesTab(props) {
   var _cantidad = f.useState(""); var cantidad = _cantidad[0], setCantidad = _cantidad[1];
   var _precio = f.useState(""); var precio = _precio[0], setPrecio = _precio[1];
   var _fecha = f.useState(wt()); var fechaStr = _fecha[0], setFechaStr = _fecha[1];
+  var _tipoCliente = f.useState("Residencial"); var tipoCliente = _tipoCliente[0], setTipoCliente = _tipoCliente[1];
+  var _notasInternas = f.useState(""); var notasInternas = _notasInternas[0], setNotasInternas = _notasInternas[1];
   var _rf = f.useState(false); var requiereFactura = _rf[0], setRequiereFactura = _rf[1];
   var _gen = f.useState(false); var generando = _gen[0], setGenerando = _gen[1];
   var _err = f.useState(""); var error = _err[0], setError = _err[1];
@@ -753,6 +755,8 @@ function ST_CotizacionesTab(props) {
           requiereFactura: requiereFactura,
           fecha: fechaStr,
           proximoServicio: "",
+          tipoCliente: tipoCliente,
+          notasInternas: notasInternas,
           estado: "Cotizado",
           origen: "generada",
           createdAt: wt()
@@ -885,6 +889,22 @@ function ST_CotizacionesTab(props) {
         ),
         f.default.createElement(oe, { label: "Direcci\u00F3n del servicio" },
           f.default.createElement("input", { className: ie, value: direccion, onChange: function (e) { setDireccion(e.target.value); }, placeholder: "Calle, n\u00FAmero, colonia" })
+        )
+      ),
+      f.default.createElement(we, { className: "p-5 space-y-4" },
+        f.default.createElement("p", { className: "text-sm font-semibold text-slate-700" }, "Informaci\u00F3n adicional"),
+        f.default.createElement("p", { className: "text-xs text-slate-400" }, "Solo para uso interno de SunTech; no aparece en el PDF de la cotizaci\u00F3n."),
+        f.default.createElement("div", { className: "grid grid-cols-2 gap-3" },
+          f.default.createElement(oe, { label: "Tipo de cliente" },
+            f.default.createElement("select", { className: ie, value: tipoCliente, onChange: function (e) { setTipoCliente(e.target.value); } },
+              f.default.createElement("option", { value: "Residencial" }, "Residencial"),
+              f.default.createElement("option", { value: "Comercio" }, "Comercio"),
+              f.default.createElement("option", { value: "Industrial" }, "Industrial")
+            )
+          )
+        ),
+        f.default.createElement(oe, { label: "Notas internas (opcional)", hint: "Referencias, horarios de acceso, acuerdos especiales, etc." },
+          f.default.createElement("textarea", { rows: 2, className: ie, value: notasInternas, onChange: function (e) { setNotasInternas(e.target.value); } })
         )
       ),
       f.default.createElement(we, { className: "p-5 space-y-4" },
@@ -1366,6 +1386,7 @@ function ST_ContratistasAdmin({ contratistas, clientes, cotizaciones, jobs, prec
   function cotizacionesDe(id) { return cotizaciones.filter(function (c) { return c.contratistaId === id; }); }
   function ganenciasDe(contratista) {
     var pagadas = cotizacionesDe(contratista.id).filter(function (c) { return c.estado === "Pagado"; });
+    var dineroGenerado = pagadas.reduce(function (s, c) { return s + (Number(c.total) || 0); }, 0);
     var porCliente = {};
     pagadas.slice().sort(function (a, b) { return (a.fecha || "").localeCompare(b.fecha || ""); }).forEach(function (c) {
       var key = (c.telefono || c.nombre || "").toLowerCase();
@@ -1382,7 +1403,7 @@ function ST_ContratistasAdmin({ contratistas, clientes, cotizaciones, jobs, prec
     var bonos = ST_calcularBonos(pagadas);
     var acumulado = directas + recurrentes;
     var pagadoYa = pagos.filter(function (p) { return p.contratistaId === contratista.id && p.estado === "pagado"; }).reduce(function (s, p) { return s + (Number(p.monto) || 0); }, 0);
-    return { acumulado: acumulado, directas: directas, recurrentes: recurrentes, bonos: bonos, pendiente: Math.max(acumulado + bonos.montoBonos - pagadoYa, 0) };
+    return { acumulado: acumulado, directas: directas, recurrentes: recurrentes, bonos: bonos, dineroGenerado: dineroGenerado, pendiente: Math.max(acumulado + bonos.montoBonos - pagadoYa, 0) };
   }
 
   var onGuardarPreciosForm = function (e) {
@@ -1436,10 +1457,11 @@ function ST_ContratistasAdmin({ contratistas, clientes, cotizaciones, jobs, prec
           f.default.createElement(ve, { variant: "secondary", onClick: function () { onToggleEstado(seleccionado.id); } }, seleccionado.estado === "activo" ? "Desactivar" : "Activar")
         )
       ),
-      f.default.createElement("div", { className: "grid grid-cols-2 md:grid-cols-4 gap-3" },
+      f.default.createElement("div", { className: "grid grid-cols-2 md:grid-cols-5 gap-3" },
         f.default.createElement(we, { className: "p-4" }, f.default.createElement("p", { className: "text-xs text-slate-400" }, "Clientes"), f.default.createElement("p", { className: "text-lg font-semibold text-slate-800" }, misClientes.length)),
         f.default.createElement(we, { className: "p-4" }, f.default.createElement("p", { className: "text-xs text-slate-400" }, "Cotizaciones"), f.default.createElement("p", { className: "text-lg font-semibold text-slate-800" }, misCotizaciones.length)),
-        f.default.createElement(we, { className: "p-4" }, f.default.createElement("p", { className: "text-xs text-slate-400" }, "Ganado (con bonos)"), f.default.createElement("p", { className: "text-lg font-semibold text-emerald-600" }, Ne(g.acumulado + g.bonos.montoBonos))),
+        f.default.createElement(we, { className: "p-4 border-emerald-200" }, f.default.createElement("p", { className: "text-xs text-slate-400" }, "Dinero que gener\u00F3"), f.default.createElement("p", { className: "text-lg font-semibold text-emerald-700" }, Ne(g.dineroGenerado))),
+        f.default.createElement(we, { className: "p-4" }, f.default.createElement("p", { className: "text-xs text-slate-400" }, "Lo que le pagamos (con bonos)"), f.default.createElement("p", { className: "text-lg font-semibold text-emerald-600" }, Ne(g.acumulado + g.bonos.montoBonos))),
         f.default.createElement(we, { className: "p-4 border-orange-200" }, f.default.createElement("p", { className: "text-xs text-slate-400" }, "Pendiente de pago"), f.default.createElement("p", { className: "text-lg font-semibold text-orange-600" }, Ne(g.pendiente)))
       ),
       f.default.createElement(we, { className: "p-4" },
@@ -1553,6 +1575,7 @@ function ST_ContratistasAdmin({ contratistas, clientes, cotizaciones, jobs, prec
                 f.default.createElement(_a, { tone: c.estado === "activo" ? "green" : "slate" }, c.estado === "activo" ? "Activo" : "Inactivo"),
                 f.default.createElement("span", { className: "text-xs font-semibold text-orange-600" }, Ne(g.pendiente) + " pendiente")
               ),
+              f.default.createElement("p", { className: "text-[10px] text-emerald-600 font-medium" }, "Gener\u00F3 " + Ne(g.dineroGenerado) + " en ventas"),
               f.default.createElement("p", { className: "text-[10px] text-slate-400" }, "Venta " + Ne(g.directas) + " \u00B7 Recurrentes " + Ne(g.recurrentes) + " \u00B7 Bonos " + Ne(g.bonos.montoBonos))
             )
           );
@@ -1728,13 +1751,14 @@ function QQ(){let[e,t]=(0,f.useState)(!0),[r,a]=(0,f.useState)("dashboard"),[n,o
       }
       return existingClient.id;
     }
+    var notasCombinadas = "Creado autom\u00E1ticamente desde la cotizaci\u00F3n " + cot.folio + (cot.notasInternas ? ". " + cot.notasInternas : "");
     var nuevoCliente = q({
       nombre: cot.nombre,
       telefono: cot.telefono || "",
       correo: cot.correo || "",
       direccion: cot.direccion || "",
-      tipo: "Residencial",
-      notas: "Creado autom\u00E1ticamente desde la cotizaci\u00F3n " + cot.folio,
+      tipo: cot.tipoCliente || "Residencial",
+      notas: notasCombinadas,
       folio: "",
       capturadoPor: cot.contratistaId || undefined
     });
