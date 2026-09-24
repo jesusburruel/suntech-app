@@ -234,6 +234,9 @@ async function pr(e,t,r=!0){try{await UQ(e,JSON.stringify(t))}catch(a){console.e
   const _modo = f.useState("empleado"); const modo = _modo[0], setModo = _modo[1];
   let [r,a]=(0,f.useState)(null),[n,o]=(0,f.useState)(""),[i,l]=(0,f.useState)(""),[s,u]=(0,f.useState)(!1);
   const _pinPersonal = f.useState(""); const pinPersonal = _pinPersonal[0], setPinPersonal = _pinPersonal[1];
+  const _faceBusy = f.useState(false); const faceIdBusy = _faceBusy[0], setFaceIdBusy = _faceBusy[1];
+  const _faceErr = f.useState(""); const faceIdErr = _faceErr[0], setFaceIdErr = _faceErr[1];
+  const _faceMsg = f.useState(""); const faceIdMsg = _faceMsg[0], setFaceIdMsg = _faceMsg[1];
   const ST_SOCIO_CODE = "031923";
   const ST_CONTRATISTA_CODE = "0987";
   const _showReg = f.useState(false); const showReg = _showReg[0], setShowReg = _showReg[1];
@@ -340,7 +343,7 @@ async function pr(e,t,r=!0){try{await UQ(e,JSON.stringify(t))}catch(a){console.e
       f.default.createElement("button",{type:"button",onClick:function(){setShowReg(true)},className:"w-full text-center text-xs text-orange-600 font-medium hover:underline pt-1"},modo==="socio"?"\u00BFEres nuevo socio? Crea tu cuenta":modo==="contratista"?"\u00BFEres nuevo contratista? Crea tu cuenta":"\u00BFEres nuevo? Crea tu cuenta")
     )
   );
-  let c=async d=>{
+    let c=async d=>{
     d.preventDefault();
     if(modo==="socio"){
       if(n!==ST_SOCIO_CODE){l("C\u00F3digo incorrecto.");return}
@@ -350,16 +353,50 @@ async function pr(e,t,r=!0){try{await UQ(e,JSON.stringify(t))}catch(a){console.e
     }
     l(""),u(!0),await t(r),u(!1)
   };
+  var intentarFaceId = async function(){
+    if(modo==="socio" && n!==ST_SOCIO_CODE){ setFaceIdErr("Primero escribe el c\u00F3digo de socio."); return; }
+    setFaceIdErr(""); setFaceIdBusy(true);
+    try{
+      var ok = await ST_entrarConFaceId(r);
+      if(ok){ setFaceIdBusy(false); u(!0); await t(r); u(!1); }
+      else { setFaceIdBusy(false); }
+    }catch(e){ console.error("Face ID login error:", e); setFaceIdBusy(false); setFaceIdErr("No se pudo verificar con Face ID. Usa tu clave normal."); }
+  };
+  var activarFaceIdFlow = async function(){
+    if(modo==="socio"){
+      if(n!==ST_SOCIO_CODE){ l("Escribe el c\u00F3digo de socio correcto primero."); return; }
+      if(pinPersonal!==r.pin){ l("Tu clave personal no es correcta."); return; }
+    } else {
+      if(n!==r.pin){ l(modo==="contratista"?"Contrase\u00F1a incorrecta.":"PIN incorrecto."); return; }
+    }
+    l(""); setFaceIdErr("");
+    try{
+      await ST_activarFaceId(r);
+      setFaceIdMsg("\u00A1Face ID activado en este dispositivo!");
+    }catch(e){
+      console.error("Face ID activation error:", e);
+      setFaceIdErr("No se pudo activar Face ID en este dispositivo. Verifica que tu tel\u00E9fono lo soporte y que est\u00E9s usando el link normal de la app (no un archivo descargado).");
+    }
+  };
+  var faceIdListo = ST_faceIdDisponible() && ST_faceIdActivo(r.id);
   return f.default.createElement("form",{onSubmit:c,className:"space-y-4"},
     f.default.createElement("button",{type:"button",onClick:()=>a(null),className:"flex items-center gap-1 text-xs text-slate-400 hover:text-slate-600"},f.default.createElement(fi,{size:14})," Cambiar usuario"),
     f.default.createElement("div",{className:"flex items-center gap-3"},f.default.createElement(hu,{user:r,size:40}),f.default.createElement("p",{className:"font-semibold text-slate-800 text-sm"},"Hola, ",r.nombre)),
     i&&f.default.createElement("p",{className:"text-xs text-red-500"},i),
+    faceIdErr&&f.default.createElement("p",{className:"text-xs text-red-500"},faceIdErr),
+    faceIdMsg&&f.default.createElement("p",{className:"text-xs text-emerald-600"},faceIdMsg),
+    faceIdListo ? f.default.createElement(f.default.Fragment,null,
+      modo==="socio" ? f.default.createElement(oe,{label:"C\u00F3digo de socio"},f.default.createElement("input",{type:"password",inputMode:"numeric",autoFocus:!0,className:ie,value:n,onChange:d=>o(d.target.value.replace(/\D/g,""))})) : null,
+      f.default.createElement(ve,{type:"button",onClick:intentarFaceId,disabled:faceIdBusy,className:"w-full justify-center"},faceIdBusy?"Verificando\u2026":"\uD83D\uDD10 Entrar con Face ID"),
+      f.default.createElement("p",{className:"text-xs text-slate-400 text-center"},"o usa tu clave normal abajo")
+    ) : null,
     modo==="socio" ? f.default.createElement(f.default.Fragment,null,
-      f.default.createElement(oe,{label:"C\u00F3digo de socio"},f.default.createElement("input",{type:"password",inputMode:"numeric",autoFocus:!0,className:ie,value:n,onChange:d=>o(d.target.value.replace(/\D/g,""))})),
+      faceIdListo ? null : f.default.createElement(oe,{label:"C\u00F3digo de socio"},f.default.createElement("input",{type:"password",inputMode:"numeric",autoFocus:!0,className:ie,value:n,onChange:d=>o(d.target.value.replace(/\D/g,""))})),
       f.default.createElement(oe,{label:"Tu clave personal"},f.default.createElement("input",{type:"password",inputMode:"numeric",className:ie,value:pinPersonal,onChange:d=>setPinPersonal(d.target.value.replace(/\D/g,""))}))
     ) : modo==="contratista" ? f.default.createElement(oe,{label:"Contrase\u00F1a"},f.default.createElement("input",{type:"password",autoFocus:!0,className:ie,value:n,onChange:d=>o(d.target.value)}))
     : f.default.createElement(oe,{label:"PIN"},f.default.createElement("input",{type:"password",inputMode:"numeric",autoFocus:!0,className:ie,value:n,onChange:d=>o(d.target.value.replace(/\D/g,""))})),
-    f.default.createElement(ve,{type:"button",onClick:c,disabled:s,className:"w-full justify-center"},s?"Entrando\u2026":"Entrar")
+    f.default.createElement(ve,{type:"button",onClick:c,disabled:s,className:"w-full justify-center"},s?"Entrando\u2026":"Entrar"),
+    ST_faceIdDisponible() ? (faceIdListo ? f.default.createElement("button",{type:"button",onClick:function(){ST_desactivarFaceId(r.id);setFaceIdMsg("Face ID desactivado en este dispositivo.");},className:"w-full text-center text-xs text-slate-400 hover:text-slate-600"},"Desactivar Face ID en este dispositivo") : f.default.createElement("button",{type:"button",onClick:activarFaceIdFlow,className:"w-full text-center text-xs text-orange-600 font-medium hover:underline"},"Activar Face ID en este dispositivo")) : null
   )
 }
 const { PDFDocument, rgb } = window.PDFLib;
@@ -1090,6 +1127,61 @@ function ST_addMonths(dateStr, months) {
   d.setMonth(d.getMonth() + months);
   return d.toISOString().slice(0, 10);
 }
+function ST_faceIdDisponible() {
+  return !!(window.PublicKeyCredential && navigator.credentials);
+}
+function ST_faceIdKey(userId) { return "suntech_faceid_" + userId; }
+function ST_faceIdActivo(userId) {
+  try { return !!localStorage.getItem(ST_faceIdKey(userId)); } catch (e) { return false; }
+}
+function ST_bufferABase64(buf) {
+  var bytes = new Uint8Array(buf);
+  var binary = "";
+  for (var i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary);
+}
+function ST_base64ABuffer(b64) {
+  var binary = atob(b64);
+  var bytes = new Uint8Array(binary.length);
+  for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes.buffer;
+}
+async function ST_activarFaceId(user) {
+  if (!ST_faceIdDisponible()) { throw new Error("Este dispositivo o navegador no soporta Face ID / Touch ID."); }
+  var challenge = crypto.getRandomValues(new Uint8Array(32));
+  var userIdBytes = new TextEncoder().encode(user.id);
+  var cred = await navigator.credentials.create({
+    publicKey: {
+      challenge: challenge,
+      rp: { name: "SunTech", id: window.location.hostname },
+      user: { id: userIdBytes, name: user.nombre, displayName: user.nombre },
+      pubKeyCredParams: [{ type: "public-key", alg: -7 }, { type: "public-key", alg: -257 }],
+      authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" },
+      timeout: 60000
+    }
+  });
+  if (!cred) throw new Error("No se pudo crear la credencial.");
+  localStorage.setItem(ST_faceIdKey(user.id), ST_bufferABase64(cred.rawId));
+  return true;
+}
+async function ST_entrarConFaceId(user) {
+  var storedId = localStorage.getItem(ST_faceIdKey(user.id));
+  if (!storedId) throw new Error("Face ID no est\u00E1 activado en este dispositivo para esta cuenta.");
+  var challenge = crypto.getRandomValues(new Uint8Array(32));
+  var assertion = await navigator.credentials.get({
+    publicKey: {
+      challenge: challenge,
+      allowCredentials: [{ id: ST_base64ABuffer(storedId), type: "public-key" }],
+      userVerification: "required",
+      timeout: 60000
+    }
+  });
+  return !!assertion;
+}
+function ST_desactivarFaceId(userId) {
+  try { localStorage.removeItem(ST_faceIdKey(userId)); } catch (e) {}
+}
+
 var ST_PRECIOS_DEFAULT = { preferencial: 90, recMin: 110, recMax: 135, minPermitido: 100, cantidadMinEspecial: 15, comisionPct: 15 };
 function ST_getPrecios(settings) {
   return Object.assign({}, ST_PRECIOS_DEFAULT, (settings && settings.preciosContratistas) || {});
