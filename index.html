@@ -237,6 +237,12 @@ async function pr(e,t,r=!0){try{await UQ(e,JSON.stringify(t))}catch(a){console.e
   const _faceBusy = f.useState(false); const faceIdBusy = _faceBusy[0], setFaceIdBusy = _faceBusy[1];
   const _faceErr = f.useState(""); const faceIdErr = _faceErr[0], setFaceIdErr = _faceErr[1];
   const _faceMsg = f.useState(""); const faceIdMsg = _faceMsg[0], setFaceIdMsg = _faceMsg[1];
+  const _mostrarManual = f.useState(false); const mostrarManual = _mostrarManual[0], setMostrarManual = _mostrarManual[1];
+  f.useEffect(function(){
+    if(r && ST_faceIdDisponible() && ST_faceIdActivo(r.id) && !mostrarManual){
+      intentarFaceId();
+    }
+  },[r]);
   const ST_SOCIO_CODE = "031923";
   const ST_CONTRATISTA_CODE = "0987";
   const _showReg = f.useState(false); const showReg = _showReg[0], setShowReg = _showReg[1];
@@ -343,7 +349,8 @@ async function pr(e,t,r=!0){try{await UQ(e,JSON.stringify(t))}catch(a){console.e
       f.default.createElement("button",{type:"button",onClick:function(){setShowReg(true)},className:"w-full text-center text-xs text-orange-600 font-medium hover:underline pt-1"},modo==="socio"?"\u00BFEres nuevo socio? Crea tu cuenta":modo==="contratista"?"\u00BFEres nuevo contratista? Crea tu cuenta":"\u00BFEres nuevo? Crea tu cuenta")
     )
   );
-    let c=async d=>{
+      const esStandalone = (window.navigator.standalone === true) || (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches);
+  let c=async d=>{
     d.preventDefault();
     if(modo==="socio"){
       if(n!==ST_SOCIO_CODE){l("C\u00F3digo incorrecto.");return}
@@ -354,15 +361,19 @@ async function pr(e,t,r=!0){try{await UQ(e,JSON.stringify(t))}catch(a){console.e
     l(""),u(!0),await t(r),u(!1)
   };
   var intentarFaceId = async function(){
-    if(modo==="socio" && n!==ST_SOCIO_CODE){ setFaceIdErr("Primero escribe el c\u00F3digo de socio."); return; }
     setFaceIdErr(""); setFaceIdBusy(true);
     try{
       var ok = await ST_entrarConFaceId(r);
       if(ok){ setFaceIdBusy(false); u(!0); await t(r); u(!1); }
-      else { setFaceIdBusy(false); }
-    }catch(e){ console.error("Face ID login error:", e); setFaceIdBusy(false); setFaceIdErr("No se pudo verificar con Face ID. Usa tu clave normal."); }
+      else { setFaceIdBusy(false); setMostrarManual(true); }
+    }catch(e){
+      console.error("Face ID login error:", e);
+      setFaceIdBusy(false);
+      setMostrarManual(true);
+      setFaceIdErr(esStandalone ? "No se pudo usar Face ID desde el \u00EDcono instalado. Prueba abrir el link directamente en Safari, o usa tu clave abajo." : "No se pudo verificar con Face ID. Usa tu clave abajo.");
+    }
   };
-  var activarFaceIdFlow = async function(){
+    var activarFaceIdFlow = async function(){
     if(modo==="socio"){
       if(n!==ST_SOCIO_CODE){ l("Escribe el c\u00F3digo de socio correcto primero."); return; }
       if(pinPersonal!==r.pin){ l("Tu clave personal no es correcta."); return; }
@@ -372,31 +383,33 @@ async function pr(e,t,r=!0){try{await UQ(e,JSON.stringify(t))}catch(a){console.e
     l(""); setFaceIdErr("");
     try{
       await ST_activarFaceId(r);
-      setFaceIdMsg("\u00A1Face ID activado en este dispositivo!");
+      setFaceIdMsg("\u00A1Face ID activado! La pr\u00F3xima vez que entres en este dispositivo, se te pedir\u00E1 autom\u00E1ticamente, sin necesidad de escribir tu clave.");
     }catch(e){
       console.error("Face ID activation error:", e);
       setFaceIdErr("No se pudo activar Face ID en este dispositivo. Verifica que tu tel\u00E9fono lo soporte y que est\u00E9s usando el link normal de la app (no un archivo descargado).");
     }
   };
   var faceIdListo = ST_faceIdDisponible() && ST_faceIdActivo(r.id);
+  var mostrarCamposManuales = mostrarManual || !faceIdListo;
   return f.default.createElement("form",{onSubmit:c,className:"space-y-4"},
     f.default.createElement("button",{type:"button",onClick:()=>a(null),className:"flex items-center gap-1 text-xs text-slate-400 hover:text-slate-600"},f.default.createElement(fi,{size:14})," Cambiar usuario"),
     f.default.createElement("div",{className:"flex items-center gap-3"},f.default.createElement(hu,{user:r,size:40}),f.default.createElement("p",{className:"font-semibold text-slate-800 text-sm"},"Hola, ",r.nombre)),
     i&&f.default.createElement("p",{className:"text-xs text-red-500"},i),
     faceIdErr&&f.default.createElement("p",{className:"text-xs text-red-500"},faceIdErr),
     faceIdMsg&&f.default.createElement("p",{className:"text-xs text-emerald-600"},faceIdMsg),
-    faceIdListo ? f.default.createElement(f.default.Fragment,null,
-      modo==="socio" ? f.default.createElement(oe,{label:"C\u00F3digo de socio"},f.default.createElement("input",{type:"password",inputMode:"numeric",autoFocus:!0,className:ie,value:n,onChange:d=>o(d.target.value.replace(/\D/g,""))})) : null,
-      f.default.createElement(ve,{type:"button",onClick:intentarFaceId,disabled:faceIdBusy,className:"w-full justify-center"},faceIdBusy?"Verificando\u2026":"\uD83D\uDD10 Entrar con Face ID"),
-      f.default.createElement("p",{className:"text-xs text-slate-400 text-center"},"o usa tu clave normal abajo")
+    (faceIdListo && !mostrarManual) ? f.default.createElement("div",{className:"space-y-3 text-center py-2"},
+      f.default.createElement(ve,{type:"button",onClick:intentarFaceId,disabled:faceIdBusy,className:"w-full justify-center"},faceIdBusy?"\uD83D\uDD10 Verificando Face ID\u2026":"\uD83D\uDD10 Entrar con Face ID"),
+      f.default.createElement("button",{type:"button",onClick:function(){setMostrarManual(true);},className:"text-xs text-slate-400 hover:text-slate-600 underline"},"Usar mi clave en su lugar")
     ) : null,
-    modo==="socio" ? f.default.createElement(f.default.Fragment,null,
-      faceIdListo ? null : f.default.createElement(oe,{label:"C\u00F3digo de socio"},f.default.createElement("input",{type:"password",inputMode:"numeric",autoFocus:!0,className:ie,value:n,onChange:d=>o(d.target.value.replace(/\D/g,""))})),
-      f.default.createElement(oe,{label:"Tu clave personal"},f.default.createElement("input",{type:"password",inputMode:"numeric",className:ie,value:pinPersonal,onChange:d=>setPinPersonal(d.target.value.replace(/\D/g,""))}))
-    ) : modo==="contratista" ? f.default.createElement(oe,{label:"Contrase\u00F1a"},f.default.createElement("input",{type:"password",autoFocus:!0,className:ie,value:n,onChange:d=>o(d.target.value)}))
-    : f.default.createElement(oe,{label:"PIN"},f.default.createElement("input",{type:"password",inputMode:"numeric",autoFocus:!0,className:ie,value:n,onChange:d=>o(d.target.value.replace(/\D/g,""))})),
-    f.default.createElement(ve,{type:"button",onClick:c,disabled:s,className:"w-full justify-center"},s?"Entrando\u2026":"Entrar"),
-    ST_faceIdDisponible() ? (faceIdListo ? f.default.createElement("button",{type:"button",onClick:function(){ST_desactivarFaceId(r.id);setFaceIdMsg("Face ID desactivado en este dispositivo.");},className:"w-full text-center text-xs text-slate-400 hover:text-slate-600"},"Desactivar Face ID en este dispositivo") : f.default.createElement("button",{type:"button",onClick:activarFaceIdFlow,className:"w-full text-center text-xs text-orange-600 font-medium hover:underline"},"Activar Face ID en este dispositivo")) : null
+    mostrarCamposManuales ? f.default.createElement(f.default.Fragment,null,
+      modo==="socio" ? f.default.createElement(f.default.Fragment,null,
+        f.default.createElement(oe,{label:"C\u00F3digo de socio"},f.default.createElement("input",{type:"password",inputMode:"numeric",autoFocus:!0,className:ie,value:n,onChange:d=>o(d.target.value.replace(/\D/g,""))})),
+        f.default.createElement(oe,{label:"Tu clave personal"},f.default.createElement("input",{type:"password",inputMode:"numeric",className:ie,value:pinPersonal,onChange:d=>setPinPersonal(d.target.value.replace(/\D/g,""))}))
+      ) : modo==="contratista" ? f.default.createElement(oe,{label:"Contrase\u00F1a"},f.default.createElement("input",{type:"password",autoFocus:!0,className:ie,value:n,onChange:d=>o(d.target.value)}))
+      : f.default.createElement(oe,{label:"PIN"},f.default.createElement("input",{type:"password",inputMode:"numeric",autoFocus:!0,className:ie,value:n,onChange:d=>o(d.target.value.replace(/\D/g,""))})),
+      f.default.createElement(ve,{type:"button",onClick:c,disabled:s,className:"w-full justify-center"},s?"Entrando\u2026":"Entrar")
+    ) : null,
+    ST_faceIdDisponible() ? (faceIdListo ? f.default.createElement("button",{type:"button",onClick:function(){ST_desactivarFaceId(r.id);setFaceIdMsg("Face ID desactivado en este dispositivo.");setMostrarManual(!0);},className:"w-full text-center text-xs text-slate-400 hover:text-slate-600"},"Desactivar Face ID en este dispositivo") : (mostrarCamposManuales ? f.default.createElement("button",{type:"button",onClick:activarFaceIdFlow,className:"w-full text-center text-xs text-orange-600 font-medium hover:underline"},"Activar Face ID en este dispositivo") : null)) : null
   )
 }
 const { PDFDocument, rgb } = window.PDFLib;
