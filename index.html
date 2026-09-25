@@ -1248,7 +1248,8 @@ function ST_mensajeRecordatorio(r, clients, cotizaciones, settings) {
 function ST_linkWhatsApp(telefono, mensaje) {
   var limpio = (telefono || "").replace(/\D/g, "");
   if (limpio.length === 10) limpio = "52" + limpio;
-  return "https://wa.me/" + limpio + "?text=" + encodeURIComponent(mensaje);
+  var mensajeConSaltos = (mensaje || "").replace(/\r\n/g, "\n").replace(/\n/g, "\r\n");
+  return "https://wa.me/" + limpio + "?text=" + encodeURIComponent(mensajeConSaltos);
 }
 var ST_PRECIOS_DEFAULT = { preferencial: 90, recMin: 110, recMax: 135, minPermitido: 100, cantidadMinEspecial: 15, comisionPct: 15 };
 function ST_getPrecios(settings) {
