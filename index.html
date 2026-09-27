@@ -960,8 +960,8 @@ function ST_CotizacionesTab(props) {
       f.default.createElement(we, { className: "p-5 space-y-4" },
         f.default.createElement("p", { className: "text-sm font-semibold text-slate-700" }, "Datos de la cotizaci\u00F3n"),
         f.default.createElement("div", { className: "grid grid-cols-2 gap-3" },
-          f.default.createElement(oe, { label: "N\u00FAmero de cotizaci\u00F3n", hint: "Autom\u00E1tico y sincronizado con todos; puedes cambiarlo si hace falta" },
-            f.default.createElement("input", { type: "number", min: "1", step: "1", className: ie, value: folio, onChange: function (e) { setFolio(e.target.value); }, placeholder: "Ej. 7" })
+          f.default.createElement(oe, { label: "N\u00FAmero de cotizaci\u00F3n", hint: "Autom\u00E1tico y sincronizado en toda la app; no se puede modificar" },
+            f.default.createElement("input", { type: "text", readOnly: !0, disabled: !0, className: ie + " bg-slate-100 text-slate-500 cursor-not-allowed", value: folio })
           ),
           f.default.createElement(oe, { label: "Fecha", hint: "Autom\u00E1tica, pero puedes cambiarla" },
             f.default.createElement("input", { type: "date", className: ie, value: fechaStr, onChange: function (e) { setFechaStr(e.target.value); } })
@@ -1011,11 +1011,7 @@ function ST_CotizacionesTab(props) {
             f.default.createElement("input", { type: "number", min: "0", step: "0.01", className: ie, value: precio, onChange: function (e) { setPrecio(e.target.value); }, placeholder: "Ej. 100" })
           )
         ),
-        props.esContratista ? f.default.createElement("div", { className: "rounded-xl bg-orange-50 border border-orange-200 px-4 py-3 flex items-center justify-between flex-wrap gap-2" },
-          f.default.createElement("p", { className: "text-xs text-orange-800" }, "Precio de SunTech: " + Ne(props.precioFijoContratista != null ? props.precioFijoContratista : 90) + "/panel. La diferencia con tu precio de venta es tu ganancia."),
-          f.default.createElement("p", { className: "text-sm font-semibold text-orange-700" }, "Tu ganancia estimada: " + Ne(Math.max(((Number(precio) || 0) - (props.precioFijoContratista != null ? props.precioFijoContratista : 90)) * (Number(cantidad) || 0), 0)))
-        ) : null,
-        f.default.createElement(oe, { label: "\u00BFRequiere factura?" },
+f.default.createElement(oe, { label: "\u00BFRequiere factura?" },
           f.default.createElement("div", { className: "flex gap-2" },
             f.default.createElement("button", { type: "button", onClick: function () { setRequiereFactura(false); }, className: "px-3 py-1.5 rounded-full text-xs font-medium border " + (!requiereFactura ? "bg-[#0B1F45] text-white border-[#0B1F45]" : "bg-white text-slate-500 border-slate-200") }, "No"),
             f.default.createElement("button", { type: "button", onClick: function () { setRequiereFactura(true); }, className: "px-3 py-1.5 rounded-full text-xs font-medium border " + (requiereFactura ? "bg-[#0B1F45] text-white border-[#0B1F45]" : "bg-white text-slate-500 border-slate-200") }, "S\u00ED (+ IVA 16%)")
