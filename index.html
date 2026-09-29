@@ -1007,18 +1007,22 @@ function ST_CotizacionesTab(props) {
         f.default.createElement("p", { className: "text-sm font-semibold text-slate-700" }, "Tipo de venta"),
         f.default.createElement("p", { className: "text-xs text-slate-400" }, "Solo para tu informaci\u00F3n; no aparece en la cotizaci\u00F3n del cliente."),
         f.default.createElement("select", { className: ie, value: tipoVenta, onChange: function (e) { setTipoVenta(e.target.value); } },
-          f.default.createElement("option", { value: "Venta" }, "Margen \u2014 SunTech te da el panel a " + Ne(props.precioFijoContratista != null ? props.precioFijoContratista : 90) + "; la diferencia con tu precio es tu ganancia"),
-          f.default.createElement("option", { value: "Comision" }, "Comisi\u00F3n \u2014 " + (props.comisionPct != null ? props.comisionPct : 15) + "% del total de la venta")
+          f.default.createElement("option", { value: "Venta" }, "Venta por margen"),
+          f.default.createElement("option", { value: "Comision" }, "Comisi\u00F3n (" + (props.comisionPct != null ? props.comisionPct : 15) + "%)")
         ),
-        f.default.createElement("div", { className: "rounded-xl bg-orange-50 border border-orange-200 px-4 py-3" },
-          f.default.createElement("p", { className: "text-sm font-semibold text-orange-700" }, "Tu ganancia estimada: " + Ne((function () {
-            var cant = Number(cantidad) || 0, prec = Number(precio) || 0;
-            var sub = Math.max(cant * prec, 0);
-            var totalConIva = requiereFactura ? sub * 1.16 : sub;
-            if (tipoVenta === "Comision") return totalConIva * ((props.comisionPct != null ? props.comisionPct : 15) / 100);
-            return Math.max((prec - (props.precioFijoContratista != null ? props.precioFijoContratista : 90)) * cant, 0);
-          })()))
-        )
+        tipoVenta === "Venta" ? f.default.createElement(f.default.Fragment, null,
+          f.default.createElement("div", { className: "grid grid-cols-2 gap-3" },
+            f.default.createElement(oe, { label: "Precio por panel (SunTech)" },
+              f.default.createElement("input", { type: "text", readOnly: !0, disabled: !0, className: ie + " bg-slate-100 text-slate-500 cursor-not-allowed", value: Ne(props.precioFijoContratista != null ? props.precioFijoContratista : 90) })
+            ),
+            f.default.createElement(oe, { label: "Precio por panel (tu venta)" },
+              f.default.createElement("input", { type: "number", min: "0", step: "0.01", className: ie, value: precio, onChange: function (e) { setPrecio(e.target.value); }, placeholder: "Ej. 130" })
+            )
+          ),
+          f.default.createElement("div", { className: "rounded-xl bg-orange-50 border border-orange-200 px-4 py-3" },
+            f.default.createElement("p", { className: "text-sm font-semibold text-orange-700" }, "Tu ganancia por panel: " + Ne(Math.max((Number(precio) || 0) - (props.precioFijoContratista != null ? props.precioFijoContratista : 90), 0)))
+          )
+        ) : f.default.createElement("p", { className: "text-xs text-slate-500 bg-slate-50 rounded-xl px-4 py-3" }, "Se calcular\u00E1 el " + (props.comisionPct != null ? props.comisionPct : 15) + "% sobre el total de la venta, una vez generada la cotizaci\u00F3n.")
       ) : null,
       f.default.createElement(we, { className: "p-5 space-y-4" },
         f.default.createElement("p", { className: "text-sm font-semibold text-slate-700" }, "Servicio"),
