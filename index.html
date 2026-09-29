@@ -736,6 +736,7 @@ function ST_CotizacionesTab(props) {
   var _fecha = f.useState(wt()); var fechaStr = _fecha[0], setFechaStr = _fecha[1];
   var _tipoCliente = f.useState("Residencial"); var tipoCliente = _tipoCliente[0], setTipoCliente = _tipoCliente[1];
   var _notasInternas = f.useState(""); var notasInternas = _notasInternas[0], setNotasInternas = _notasInternas[1];
+  var _tipoVenta = f.useState(function () { return props.contratistaModalidad || "Comision"; }); var tipoVenta = _tipoVenta[0], setTipoVenta = _tipoVenta[1];
   var _rf = f.useState(false); var requiereFactura = _rf[0], setRequiereFactura = _rf[1];
   var _gen = f.useState(false); var generando = _gen[0], setGenerando = _gen[1];
   var _err = f.useState(""); var error = _err[0], setError = _err[1];
@@ -841,6 +842,7 @@ function ST_CotizacionesTab(props) {
           proximoServicio: "",
           tipoCliente: tipoCliente,
           notasInternas: notasInternas,
+          modalidadVenta: props.esContratista ? tipoVenta : undefined,
           estado: "Cotizado",
           origen: "generada",
           createdAt: wt()
@@ -1001,6 +1003,23 @@ function ST_CotizacionesTab(props) {
           f.default.createElement("textarea", { rows: 2, className: ie, value: notasInternas, onChange: function (e) { setNotasInternas(e.target.value); } })
         )
       ),
+      props.esContratista ? f.default.createElement(we, { className: "p-5 space-y-3" },
+        f.default.createElement("p", { className: "text-sm font-semibold text-slate-700" }, "Tipo de venta"),
+        f.default.createElement("p", { className: "text-xs text-slate-400" }, "Solo para tu informaci\u00F3n; no aparece en la cotizaci\u00F3n del cliente."),
+        f.default.createElement("select", { className: ie, value: tipoVenta, onChange: function (e) { setTipoVenta(e.target.value); } },
+          f.default.createElement("option", { value: "Venta" }, "Margen \u2014 SunTech te da el panel a " + Ne(props.precioFijoContratista != null ? props.precioFijoContratista : 90) + "; la diferencia con tu precio es tu ganancia"),
+          f.default.createElement("option", { value: "Comision" }, "Comisi\u00F3n \u2014 " + (props.comisionPct != null ? props.comisionPct : 15) + "% del total de la venta")
+        ),
+        f.default.createElement("div", { className: "rounded-xl bg-orange-50 border border-orange-200 px-4 py-3" },
+          f.default.createElement("p", { className: "text-sm font-semibold text-orange-700" }, "Tu ganancia estimada: " + Ne((function () {
+            var cant = Number(cantidad) || 0, prec = Number(precio) || 0;
+            var sub = Math.max(cant * prec, 0);
+            var totalConIva = requiereFactura ? sub * 1.16 : sub;
+            if (tipoVenta === "Comision") return totalConIva * ((props.comisionPct != null ? props.comisionPct : 15) / 100);
+            return Math.max((prec - (props.precioFijoContratista != null ? props.precioFijoContratista : 90)) * cant, 0);
+          })()))
+        )
+      ) : null,
       f.default.createElement(we, { className: "p-5 space-y-4" },
         f.default.createElement("p", { className: "text-sm font-semibold text-slate-700" }, "Servicio"),
         f.default.createElement("div", { className: "grid grid-cols-2 gap-3" },
@@ -1095,7 +1114,7 @@ f.default.createElement(oe, { label: "\u00BFRequiere factura?" },
                 onChange: function (e) {
                   var val = e.target.value;
                   if (val === "Realizado") { setRealizadoTargetId(item.id); }
-                  else if (val === "Pagado" && item.contratistaId) { setPagadoTargetId(item.id); }
+                  else if (val === "Pagado" && item.contratistaId && !item.modalidadVenta) { setPagadoTargetId(item.id); }
                   else { onSetEstado(item.id, val); }
                   if (val === "Programado" || val === "Aceptado") {
                     setFichaMsg("Generando ficha de trabajo\u2026");
@@ -2152,7 +2171,7 @@ r==="contratistas"&&(L?f.default.createElement(ST_ContratistasAdmin,{contratista
 r==="c-dashboard"&&esContratista&&f.default.createElement(ST_ContratistaDashboard,{misClientes:ST_misClientes,misCotizaciones:ST_misCotizaciones,misServicios:ST_misJobs,ganancias:ST_misGanancias,bonos:ST_calcularBonos(ST_misCotizacionesPagadas),onGoTo:a}),
 r==="c-calendario"&&esContratista&&f.default.createElement(rZ,{jobs:ST_misJobs,reminders:ST_misReminders,clientName:Xr,onOpenTab:function(){a("c-servicios");}}),
 r==="c-clientes"&&esContratista&&f.default.createElement($Q,{clients:ST_misClientes,jobs:ST_misJobs,employees:p,upsertClient:ST_upsertClienteComoContratista,deleteClient:J,selectedClientId:M,setSelectedClientId:H,upsertJob:ST_upsertJobComoContratista,settings:b,clientName:Xr,onProxServicio:ST_handleClientProximoServicio,onNuevaCotizacion:ST_iniciarCotizacionParaCliente}),
-r==="c-cotizaciones"&&esContratista&&f.default.createElement(ST_CotizacionesTab,{list:ST_misCotizaciones,allCotizaciones:ST_cotList,onAdd:ST_addCotizacionComoContratista,onSetEstado:ST_setCotEstado,onDelete:ST_deleteCotizacion,onMarkRealizado:ST_marcarRealizado,prefillCliente:ST_prefillCliente,onPrefillUsed:function(){ST_setPrefillCliente(null);},onSetProximoServicio:ST_setCotProximoServicio,onConfirmarPagoConModalidad:ST_confirmarPagoConModalidad,onBulkDelete:ST_deleteCotizacionesBulk,esContratista:!0,precioFijoContratista:ST_preciosActuales.preferencial}),
+r==="c-cotizaciones"&&esContratista&&f.default.createElement(ST_CotizacionesTab,{list:ST_misCotizaciones,allCotizaciones:ST_cotList,onAdd:ST_addCotizacionComoContratista,onSetEstado:ST_setCotEstado,onDelete:ST_deleteCotizacion,onMarkRealizado:ST_marcarRealizado,prefillCliente:ST_prefillCliente,onPrefillUsed:function(){ST_setPrefillCliente(null);},onSetProximoServicio:ST_setCotProximoServicio,onConfirmarPagoConModalidad:ST_confirmarPagoConModalidad,onBulkDelete:ST_deleteCotizacionesBulk,esContratista:!0,precioFijoContratista:ST_preciosActuales.preferencial,contratistaModalidad:G.modalidad,comisionPct:ST_preciosActuales.comisionPct}),
 r==="c-servicios"&&esContratista&&f.default.createElement(ST_ContratistaServicios,{jobs:ST_misJobs,clientName:Xr}),
 r==="c-ganancias"&&esContratista&&f.default.createElement(ST_ContratistaGanancias,{misCotizacionesPagadas:ST_misCotizacionesPagadas,contratista:G,precios:ST_preciosActuales,pagosContratista:ST_misPagos}),
 r==="c-bonos"&&esContratista&&f.default.createElement(ST_ContratistaBonos,{misCotizacionesPagadas:ST_misCotizacionesPagadas}),
