@@ -1188,6 +1188,25 @@ function ST_CotizacionesTab(props) {
     })();
   };
 
+  var descargarPdfNuevo = function (item) {
+    (async function () {
+      try {
+        var fp = (item.fecha || wt()).split("-");
+        var folioPad = ST_padFolio(parseInt(item.folio, 10) || 0);
+        var bytes = await ST_generarPDF({
+          folio: folioPad,
+          fecha: { yyyy: fp[0], mm: fp[1], dd: fp[2] },
+          nombre: item.nombre || "", telefono: item.telefono || "", correo: item.correo || "", direccion: item.direccion || "",
+          cantidad: item.cantidad, precio: item.precio, subtotal: item.subtotal, iva: item.iva || 0, total: item.total
+        });
+        ST_descargarBlob(new Blob([bytes], { type: "application/pdf" }), "Cotizacion_SunTech_" + folioPad + ".pdf");
+      } catch (err) {
+        console.error(err);
+        window.alert("No se pudo generar el PDF. Intenta de nuevo.");
+      }
+    })();
+  };
+
   var eliminarCot = function (item) {
     (async function () {
       var ok = await confirmAction("\u00BFSeguro que quieres eliminar la cotizaci\u00F3n " + item.folio + "? Esto tambi\u00E9n eliminar\u00E1 el PDF guardado y, si estaba marcada como realizada, su ingreso en Finanzas.");
@@ -1425,6 +1444,7 @@ f.default.createElement(oe, { label: "\u00BFRequiere factura?" },
               }, vj.map(function (op) { return f.default.createElement("option", { key: op, value: op }, op); })),
               item.plan && item.plan.meses ? f.default.createElement("button", { type: "button", "data-testid": "propuesta-plan", onClick: function () { ST_generarYAbrirPropuestaPlan(item); }, className: "text-xs text-emerald-700 font-medium hover:underline px-1" }, "Propuesta de plan") : null,
               f.default.createElement("button", { type: "button", onClick: function () { verPdf(item); }, className: "text-xs text-[#0B1F45] font-medium hover:underline px-1" }, "Ver PDF"),
+              (item.cantidad != null && item.precio != null && item.nombre) ? f.default.createElement("button", { type: "button", "data-testid": "descargar-pdf", onClick: function () { descargarPdfNuevo(item); }, className: "text-xs text-[#F47421] font-medium hover:underline px-1" }, "Descargar PDF") : null,
               f.default.createElement("button", { type: "button", onClick: function () { eliminarCot(item); }, className: "text-slate-300 hover:text-red-500 p-1", title: "Eliminar" }, f.default.createElement(Fr, { size: 14 }))
             )
           );
