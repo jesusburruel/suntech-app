@@ -1161,9 +1161,23 @@ function ST_CotizacionesTab(props) {
   var verPdf = function (item) {
     (async function () {
       try {
-        var doc = await WS(item.id, "cotizacion");
+        var doc = null;
+        try { doc = await WS(item.id, "cotizacion"); } catch (e0) { doc = null; }
         if (doc && doc.dataUrl) {
           ST_openPdfDataUrl(doc.dataUrl, doc.name || ("Cotizacion_" + item.folio + ".pdf"));
+        } else if (item.cantidad != null && item.precio != null && item.nombre) {
+          // No hay PDF guardado en este dispositivo: se vuelve a generar con los datos de la cotizaci\u00F3n.
+          var fp = (item.fecha || wt()).split("-");
+          var regen = await ST_generarPDF({
+            folio: ST_padFolio(parseInt(item.folio, 10) || 0),
+            fecha: { yyyy: fp[0], mm: fp[1], dd: fp[2] },
+            nombre: item.nombre || "", telefono: item.telefono || "", correo: item.correo || "", direccion: item.direccion || "",
+            cantidad: item.cantidad, precio: item.precio, subtotal: item.subtotal, iva: item.iva || 0, total: item.total
+          });
+          var regenBlob = new Blob([regen], { type: "application/pdf" });
+          var regenName = "Cotizacion_SunTech_" + ST_padFolio(parseInt(item.folio, 10) || 0) + ".pdf";
+          ST_descargarBlob(regenBlob, regenName);
+          try { var regenUrl = await bj(regenBlob); await Aj(item.id, "cotizacion", { name: regenName, dataUrl: regenUrl, uploadedAt: wt() }); } catch (e1) {}
         } else {
           window.alert("No se encontr\u00F3 el PDF guardado para esta cotizaci\u00F3n.");
         }
