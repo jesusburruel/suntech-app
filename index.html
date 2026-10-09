@@ -703,12 +703,20 @@ function ST_getFechaPartes() {
 
 var ST_PLAN_DESCUENTO = 0.19;
 var ST_PLAN_OPCIONES = [1, 2, 3, 4, 6];
-function ST_calcularPlan(cantidad, subtotalPlan, meses) {
-  // El precio que se captura es el del PLAN. El individual de referencia = plan / 0.81 (19% de descuento),
-  // redondeado a la decena m\u00E1s cercana. El ahorro y el % mostrados son los reales.
+var ST_PRECIO_BASE = 110;
+function ST_calcularPlan(cantidad, monto, meses, tipoMonto) {
+  // tipoMonto "individual": el monto es el servicio individual y el plan = individual - 19%, a la decena m\u00E1s cercana.
+  // tipoMonto "plan": el monto es el plan y el individual de referencia = plan / 0.81, a la decena m\u00E1s cercana.
   var m = parseInt(meses, 10);
-  if (!m || !(subtotalPlan > 0) || !(cantidad > 0)) return null;
-  var subtotalIndividual = Math.round(subtotalPlan / (1 - ST_PLAN_DESCUENTO) / 10) * 10;
+  if (!m || !(monto > 0) || !(cantidad > 0)) return null;
+  var subtotalIndividual, subtotalPlan;
+  if (tipoMonto === "plan") {
+    subtotalPlan = monto;
+    subtotalIndividual = Math.round(monto / (1 - ST_PLAN_DESCUENTO) / 10) * 10;
+  } else {
+    subtotalIndividual = monto;
+    subtotalPlan = Math.round(monto * (1 - ST_PLAN_DESCUENTO) / 10) * 10;
+  }
   var ahorro = Math.round((subtotalIndividual - subtotalPlan) * 100) / 100;
   var serviciosAnio = 12 / m;
   return {
@@ -716,7 +724,7 @@ function ST_calcularPlan(cantidad, subtotalPlan, meses) {
     subtotalIndividual: subtotalIndividual,
     subtotalPlan: subtotalPlan,
     ahorroServicio: ahorro,
-    descuentoPct: Math.round((ahorro / subtotalIndividual) * 1000) / 10,
+    descuentoPct: subtotalIndividual > 0 ? Math.round((ahorro / subtotalIndividual) * 1000) / 10 : 0,
     precioPanelIndividual: Math.round((subtotalIndividual / cantidad) * 100) / 100,
     precioPanelPlan: Math.round((subtotalPlan / cantidad) * 100) / 100,
     serviciosAnio: serviciosAnio,
@@ -960,6 +968,8 @@ function ST_CotizacionesTab(props) {
   var _notasInternas = f.useState(""); var notasInternas = _notasInternas[0], setNotasInternas = _notasInternas[1];
   var _tipoVenta = f.useState(function () { return props.contratistaModalidad || "Comision"; }); var tipoVenta = _tipoVenta[0], setTipoVenta = _tipoVenta[1];
   var _plan = f.useState(""); var planMeses = _plan[0], setPlanMeses = _plan[1];
+  var _planBase = f.useState("estandar"); var planBase = _planBase[0], setPlanBase = _planBase[1];
+  var _planTipo = f.useState("individual"); var planTipo = _planTipo[0], setPlanTipo = _planTipo[1];
   var _rf = f.useState(false); var requiereFactura = _rf[0], setRequiereFactura = _rf[1];
   var _gen = f.useState(false); var generando = _gen[0], setGenerando = _gen[1];
   var _err = f.useState(""); var error = _err[0], setError = _err[1];
@@ -982,9 +992,15 @@ function ST_CotizacionesTab(props) {
   var cantidadNum = parseFloat(cantidad) || 0;
   var precioNum = parseFloat(precio) || 0;
   var calc = ST_calcular(cantidadNum, precioNum, requiereFactura);
-  var planCalc = planMeses ? ST_calcularPlan(cantidadNum, calc.subtotal, planMeses) : null;
+  var planEstandar = !!planMeses && planBase === "estandar";
+  var planMonto = planEstandar ? Math.round(cantidadNum * ST_PRECIO_BASE * 100) / 100 : calc.subtotal;
+  var planCalc = planMeses ? ST_calcularPlan(cantidadNum, planMonto, planMeses, planEstandar ? "individual" : planTipo) : null;
+  if (planCalc) {
+    var _ivaP = requiereFactura ? Math.round(planCalc.subtotalPlan * 0.16 * 100) / 100 : 0;
+    calc = { subtotal: planCalc.subtotalPlan, iva: _ivaP, total: Math.round((planCalc.subtotalPlan + _ivaP) * 100) / 100 };
+  }
   var subtotal = calc.subtotal, iva = calc.iva, total = calc.total;
-  var precioDoc = precioNum;
+  var precioDoc = planCalc ? planCalc.precioPanelPlan : precioNum;
   var tipoVentaEf = (props.esContratista && planCalc) ? "Comision" : tipoVenta;
 
   function fechaStrToPartes(str) {
@@ -995,7 +1011,7 @@ function ST_CotizacionesTab(props) {
   var onSubmit = function (e) {
     e.preventDefault();
     var folioNum = parseInt(folio, 10);
-    if (!folioNum || !nombre.trim() || !telefono.trim() || !direccion.trim() || !cantidadNum || precio === "" || isNaN(precioNum)) {
+    if (!folioNum || !nombre.trim() || !telefono.trim() || !direccion.trim() || !cantidadNum || (precio === "" && !(planMeses && planBase === "estandar")) || isNaN(precioNum)) {
       setError("Por favor completa todos los campos obligatorios.");
       return;
     }
@@ -1257,8 +1273,8 @@ function ST_CotizacionesTab(props) {
           f.default.createElement(oe, { label: "Cantidad de paneles" },
             f.default.createElement("input", { type: "number", min: "1", step: "1", className: ie, value: cantidad, onChange: function (e) { setCantidad(e.target.value); }, placeholder: "Ej. 150" })
           ),
-          f.default.createElement(oe, { label: planMeses ? "Precio por panel del PLAN (MXN)" : "Precio por panel (MXN)" },
-            f.default.createElement("input", { type: "number", min: "0", step: "0.01", className: ie, value: precio, onChange: function (e) { setPrecio(e.target.value); }, placeholder: "Ej. 100" })
+          f.default.createElement(oe, { label: planMeses ? (planEstandar ? "Precio por panel individual (est\u00E1ndar)" : (planTipo === "plan" ? "Precio por panel del PLAN (MXN)" : "Precio por panel individual (MXN)")) : "Precio por panel (MXN)" },
+            f.default.createElement("input", { type: "number", min: "0", step: "0.01", className: ie + (planEstandar ? " bg-slate-100 text-slate-500" : ""), value: planEstandar ? String(ST_PRECIO_BASE) : precio, readOnly: planEstandar, onChange: function (e) { setPrecio(e.target.value); }, placeholder: "Ej. 100" })
           )
         ),
 f.default.createElement(oe, { label: "\u00BFRequiere factura?" },
@@ -1275,13 +1291,26 @@ f.default.createElement(oe, { label: "\u00BFRequiere factura?" },
       ),
       f.default.createElement(we, { className: "p-5 space-y-3", "data-testid": "plan-card" },
         f.default.createElement("p", { className: "text-sm font-semibold text-slate-700" }, "Tipo de servicio"),
-        f.default.createElement("p", { className: "text-xs text-slate-400" }, "Con un plan, el precio por panel de arriba es el del PLAN. La app calcula el precio individual de referencia (plan \u00F7 0.81) y tu ahorro."),
+        f.default.createElement("p", { className: "text-xs text-slate-400" }, "Elige si usas tu precio est\u00E1ndar o uno personalizado; la app calcula el plan (19% menos), el individual de referencia y tu ahorro."),
         f.default.createElement("div", { className: "flex flex-wrap gap-2" },
           [""].concat(ST_PLAN_OPCIONES).map(function (m) {
             var activo = String(planMeses) === String(m);
             return f.default.createElement("button", { key: "pl" + m, type: "button", "data-plan": String(m), onClick: function () { setPlanMeses(String(m)); if (m && props.esContratista) setTipoVenta("Comision"); }, className: "px-3 py-1.5 rounded-full text-xs font-medium border " + (activo ? "bg-[#0B1F45] text-white border-[#0B1F45]" : "bg-white text-slate-500 border-slate-200") }, m === "" ? "Individual" : (m === 1 ? "Cada mes" : "Cada " + m + " meses"));
           })
         ),
+        planMeses ? f.default.createElement("div", { className: "space-y-2" },
+          f.default.createElement("div", { className: "flex flex-wrap gap-2" },
+            f.default.createElement("button", { type: "button", "data-base": "estandar", onClick: function () { setPlanBase("estandar"); }, className: "px-3 py-1.5 rounded-full text-xs font-medium border " + (planBase === "estandar" ? "bg-[#F47421] text-white border-[#F47421]" : "bg-white text-slate-500 border-slate-200") }, "Precio est\u00E1ndar $" + ST_PRECIO_BASE + " por panel"),
+            f.default.createElement("button", { type: "button", "data-base": "custom", onClick: function () { setPlanBase("custom"); }, className: "px-3 py-1.5 rounded-full text-xs font-medium border " + (planBase === "custom" ? "bg-[#F47421] text-white border-[#F47421]" : "bg-white text-slate-500 border-slate-200") }, "Precio personalizado")
+          ),
+          planBase === "custom" ? f.default.createElement("div", { className: "space-y-1" },
+            f.default.createElement("p", { className: "text-[11px] text-slate-500" }, "El precio por panel que escribes arriba es el:"),
+            f.default.createElement("div", { className: "flex flex-wrap gap-2" },
+              f.default.createElement("button", { type: "button", "data-tipo": "individual", onClick: function () { setPlanTipo("individual"); }, className: "px-3 py-1.5 rounded-full text-xs font-medium border " + (planTipo === "individual" ? "bg-[#0B1F45] text-white border-[#0B1F45]" : "bg-white text-slate-500 border-slate-200") }, "Individual (calcular plan)"),
+              f.default.createElement("button", { type: "button", "data-tipo": "plan", onClick: function () { setPlanTipo("plan"); }, className: "px-3 py-1.5 rounded-full text-xs font-medium border " + (planTipo === "plan" ? "bg-[#0B1F45] text-white border-[#0B1F45]" : "bg-white text-slate-500 border-slate-200") }, "Del plan (calcular individual)")
+            )
+          ) : null
+        ) : null,
         planMeses && !planCalc ? f.default.createElement("p", { className: "text-xs text-slate-400" }, "Captura cantidad de paneles y precio individual para calcular el plan.") : null,
         planCalc ? f.default.createElement("div", { className: "rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm space-y-1", "data-testid": "plan-resumen" },
           f.default.createElement("div", { className: "flex justify-between text-slate-600" }, f.default.createElement("span", null, "Individual (cuando lo note sucio)"), f.default.createElement("span", { className: "tabular-nums" }, ST_formatMoney(planCalc.subtotalIndividual) + " (" + ST_formatMoney(planCalc.precioPanelIndividual) + " por panel)")),
@@ -1291,7 +1320,7 @@ f.default.createElement(oe, { label: "\u00BFRequiere factura?" },
           f.default.createElement("div", { className: "flex justify-between text-slate-600" }, f.default.createElement("span", null, "Servicios al a\u00F1o"), f.default.createElement("span", { className: "tabular-nums" }, String(planCalc.serviciosAnio))),
           f.default.createElement("div", { className: "flex justify-between text-slate-600" }, f.default.createElement("span", null, "Total anual"), f.default.createElement("span", { className: "tabular-nums" }, ST_formatMoney(planCalc.totalAnio))),
           f.default.createElement("div", { className: "flex justify-between font-semibold text-emerald-700" }, f.default.createElement("span", null, "Ahorro anual"), f.default.createElement("span", { className: "tabular-nums" }, ST_formatMoney(planCalc.ahorroAnio))),
-          f.default.createElement("p", { className: "text-[11px] text-slate-400 pt-1" }, "Precio individual de referencia redondeado a la decena m\u00E1s cercana; el ahorro mostrado es el real. Se cobra por servicio; incluye Solar Wash Protect.")
+          f.default.createElement("p", { className: "text-[11px] text-slate-400 pt-1" }, "Precio redondeado a la decena m\u00E1s cercana; el ahorro mostrado es el real. Se cobra por servicio; incluye Solar Wash Protect.")
         ) : null
       ),
       error ? f.default.createElement("p", { className: "text-xs text-red-500" }, error) : null,
