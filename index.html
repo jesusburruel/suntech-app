@@ -519,13 +519,16 @@ async function ST_generarPropuestaPlan(cot) {
   t(cot.nombre || "", 40, y, 15, fBold, navy, "left", 520); y -= 16;
   if (cot.direccion) { t(cot.direccion, 40, y, 10, fReg, gray, "left", 520); y -= 14; }
   if (cot.telefono) { t("Tel. " + cot.telefono, 40, y, 10, fReg, gray); y -= 14; }
-  y -= 14;
+  y -= 8;
+  var cadaTxt = pl.meses === 1 ? "cada mes" : "cada " + pl.meses + " meses";
+  wrap("Plan de limpieza " + cadaTxt + ", ya incluida la protecci\u00F3n Solar Wash Protect: " + m(pl.subtotalPlan) + " (" + m(pl.precioPanelPlan) + " por panel). Si lo prefiere, tambi\u00E9n podemos hacerlo cada que usted lo note sucio, con un precio de " + m(pl.subtotalIndividual) + " (" + m(pl.precioPanelIndividual) + " por panel).", fReg, 10, 530).forEach(function (ln) { t(ln, 40, y, 10, fReg, navy); y -= 14; });
+  y -= 10;
   // Comparativo
   var top = y, h = 235, colW = 250;
   page.drawRectangle({ x: 40, y: top - h, width: colW, height: h, color: light });
   page.drawRectangle({ x: 322, y: top - h, width: colW, height: h, color: white, borderColor: orange, borderWidth: 2 });
   page.drawRectangle({ x: 322, y: top - 30, width: colW, height: 30, color: orange });
-  t("SERVICIO INDIVIDUAL", 40 + colW / 2, top - 20, 11, fBold, navy, "center");
+  t("INDIVIDUAL (CUANDO LO NOTE SUCIO)", 40 + colW / 2, top - 20, 11, fBold, navy, "center");
   t(ST_etiquetaPlan(pl.meses).toUpperCase() + " (RECOMENDADO)", 322 + colW / 2, top - 20, 10.5, fBold, white, "center", colW - 16);
   var servInd = 1, servPlan = pl.serviciosAnio;
   var filas = [
@@ -560,7 +563,7 @@ async function ST_generarPropuestaPlan(cot) {
   y -= 14;
   // Términos
   t("TÉRMINOS Y CONDICIONES", 40, y, 8, fMed, gray); y -= 15;
-  var terminos = ["El precio del plan se redondea a la decena más cercana por conveniencia comercial; el ahorro mostrado en este documento es el real después del redondeo.", "El descuento del plan es del 19% sobre el precio individual antes del redondeo." + (cot.requiereFactura ? " Los precios mostrados no incluyen IVA (16%)." : ""), "Propuesta informativa sujeta a revisión del número de paneles al momento del servicio."];
+  var terminos = ["El precio individual de referencia se redondea a la decena más cercana por conveniencia comercial; el ahorro mostrado en este documento es el real después del redondeo.", "El plan equivale a un 19% de descuento sobre el precio individual (antes del redondeo)." + (cot.requiereFactura ? " Los precios mostrados no incluyen IVA (16%)." : ""), "Propuesta informativa sujeta a revisión del número de paneles al momento del servicio."];
   terminos.forEach(function (tx) {
     wrap(tx, fReg, 8.5, 530).forEach(function (ln) { t(ln, 40, y, 8.5, fReg, gray); y -= 12; });
     y -= 3;
@@ -700,11 +703,12 @@ function ST_getFechaPartes() {
 
 var ST_PLAN_DESCUENTO = 0.19;
 var ST_PLAN_OPCIONES = [1, 2, 3, 4, 6];
-function ST_calcularPlan(cantidad, subtotalIndividual, meses) {
-  // Precio del plan = individual - 19%, redondeado a la decena m\u00E1s cercana.
+function ST_calcularPlan(cantidad, subtotalPlan, meses) {
+  // El precio que se captura es el del PLAN. El individual de referencia = plan / 0.81 (19% de descuento),
+  // redondeado a la decena m\u00E1s cercana. El ahorro y el % mostrados son los reales.
   var m = parseInt(meses, 10);
-  if (!m || !(subtotalIndividual > 0) || !(cantidad > 0)) return null;
-  var subtotalPlan = Math.round(subtotalIndividual * (1 - ST_PLAN_DESCUENTO) / 10) * 10;
+  if (!m || !(subtotalPlan > 0) || !(cantidad > 0)) return null;
+  var subtotalIndividual = Math.round(subtotalPlan / (1 - ST_PLAN_DESCUENTO) / 10) * 10;
   var ahorro = Math.round((subtotalIndividual - subtotalPlan) * 100) / 100;
   var serviciosAnio = 12 / m;
   return {
@@ -712,7 +716,7 @@ function ST_calcularPlan(cantidad, subtotalIndividual, meses) {
     subtotalIndividual: subtotalIndividual,
     subtotalPlan: subtotalPlan,
     ahorroServicio: ahorro,
-    descuentoPct: subtotalIndividual > 0 ? Math.round((ahorro / subtotalIndividual) * 1000) / 10 : 0,
+    descuentoPct: Math.round((ahorro / subtotalIndividual) * 1000) / 10,
     precioPanelIndividual: Math.round((subtotalIndividual / cantidad) * 100) / 100,
     precioPanelPlan: Math.round((subtotalPlan / cantidad) * 100) / 100,
     serviciosAnio: serviciosAnio,
@@ -979,12 +983,8 @@ function ST_CotizacionesTab(props) {
   var precioNum = parseFloat(precio) || 0;
   var calc = ST_calcular(cantidadNum, precioNum, requiereFactura);
   var planCalc = planMeses ? ST_calcularPlan(cantidadNum, calc.subtotal, planMeses) : null;
-  if (planCalc) {
-    var _ivaP = requiereFactura ? Math.round(planCalc.subtotalPlan * 0.16 * 100) / 100 : 0;
-    calc = { subtotal: planCalc.subtotalPlan, iva: _ivaP, total: Math.round((planCalc.subtotalPlan + _ivaP) * 100) / 100 };
-  }
   var subtotal = calc.subtotal, iva = calc.iva, total = calc.total;
-  var precioDoc = planCalc ? planCalc.precioPanelPlan : precioNum;
+  var precioDoc = precioNum;
   var tipoVentaEf = (props.esContratista && planCalc) ? "Comision" : tipoVenta;
 
   function fechaStrToPartes(str) {
@@ -1257,7 +1257,7 @@ function ST_CotizacionesTab(props) {
           f.default.createElement(oe, { label: "Cantidad de paneles" },
             f.default.createElement("input", { type: "number", min: "1", step: "1", className: ie, value: cantidad, onChange: function (e) { setCantidad(e.target.value); }, placeholder: "Ej. 150" })
           ),
-          f.default.createElement(oe, { label: "Precio por panel (MXN)" },
+          f.default.createElement(oe, { label: planMeses ? "Precio por panel del PLAN (MXN)" : "Precio por panel (MXN)" },
             f.default.createElement("input", { type: "number", min: "0", step: "0.01", className: ie, value: precio, onChange: function (e) { setPrecio(e.target.value); }, placeholder: "Ej. 100" })
           )
         ),
@@ -1275,7 +1275,7 @@ f.default.createElement(oe, { label: "\u00BFRequiere factura?" },
       ),
       f.default.createElement(we, { className: "p-5 space-y-3", "data-testid": "plan-card" },
         f.default.createElement("p", { className: "text-sm font-semibold text-slate-700" }, "Tipo de servicio"),
-        f.default.createElement("p", { className: "text-xs text-slate-400" }, "Escribe arriba el precio individual; si eliges un plan, la app calcula el precio con 19% de descuento."),
+        f.default.createElement("p", { className: "text-xs text-slate-400" }, "Con un plan, el precio por panel de arriba es el del PLAN. La app calcula el precio individual de referencia (plan \u00F7 0.81) y tu ahorro."),
         f.default.createElement("div", { className: "flex flex-wrap gap-2" },
           [""].concat(ST_PLAN_OPCIONES).map(function (m) {
             var activo = String(planMeses) === String(m);
@@ -1284,14 +1284,14 @@ f.default.createElement(oe, { label: "\u00BFRequiere factura?" },
         ),
         planMeses && !planCalc ? f.default.createElement("p", { className: "text-xs text-slate-400" }, "Captura cantidad de paneles y precio individual para calcular el plan.") : null,
         planCalc ? f.default.createElement("div", { className: "rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm space-y-1", "data-testid": "plan-resumen" },
-          f.default.createElement("div", { className: "flex justify-between text-slate-600" }, f.default.createElement("span", null, "Servicio individual"), f.default.createElement("span", { className: "tabular-nums" }, ST_formatMoney(planCalc.subtotalIndividual))),
+          f.default.createElement("div", { className: "flex justify-between text-slate-600" }, f.default.createElement("span", null, "Individual (cuando lo note sucio)"), f.default.createElement("span", { className: "tabular-nums" }, ST_formatMoney(planCalc.subtotalIndividual) + " (" + ST_formatMoney(planCalc.precioPanelIndividual) + " por panel)")),
           f.default.createElement("div", { className: "flex justify-between font-semibold text-emerald-700" }, f.default.createElement("span", null, ST_etiquetaPlan(planCalc.meses) + " (por servicio)"), f.default.createElement("span", { className: "tabular-nums" }, ST_formatMoney(planCalc.subtotalPlan))),
           f.default.createElement("div", { className: "flex justify-between text-slate-600" }, f.default.createElement("span", null, "Ahorro por servicio"), f.default.createElement("span", { className: "tabular-nums" }, ST_formatMoney(planCalc.ahorroServicio) + " (" + planCalc.descuentoPct + "%)")),
-          f.default.createElement("div", { className: "flex justify-between text-slate-600" }, f.default.createElement("span", null, "Precio por panel"), f.default.createElement("span", { className: "tabular-nums" }, ST_formatMoney(planCalc.precioPanelPlan) + " (antes " + ST_formatMoney(planCalc.precioPanelIndividual) + ")")),
+          f.default.createElement("div", { className: "flex justify-between text-slate-600" }, f.default.createElement("span", null, "Precio por panel del plan"), f.default.createElement("span", { className: "tabular-nums" }, ST_formatMoney(planCalc.precioPanelPlan))),
           f.default.createElement("div", { className: "flex justify-between text-slate-600" }, f.default.createElement("span", null, "Servicios al a\u00F1o"), f.default.createElement("span", { className: "tabular-nums" }, String(planCalc.serviciosAnio))),
           f.default.createElement("div", { className: "flex justify-between text-slate-600" }, f.default.createElement("span", null, "Total anual"), f.default.createElement("span", { className: "tabular-nums" }, ST_formatMoney(planCalc.totalAnio))),
           f.default.createElement("div", { className: "flex justify-between font-semibold text-emerald-700" }, f.default.createElement("span", null, "Ahorro anual"), f.default.createElement("span", { className: "tabular-nums" }, ST_formatMoney(planCalc.ahorroAnio))),
-          f.default.createElement("p", { className: "text-[11px] text-slate-400 pt-1" }, "Precio redondeado a la decena m\u00E1s cercana. Se cobra por servicio; incluye Solar Wash Protect.")
+          f.default.createElement("p", { className: "text-[11px] text-slate-400 pt-1" }, "Precio individual de referencia redondeado a la decena m\u00E1s cercana; el ahorro mostrado es el real. Se cobra por servicio; incluye Solar Wash Protect.")
         ) : null
       ),
       error ? f.default.createElement("p", { className: "text-xs text-red-500" }, error) : null,
